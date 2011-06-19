@@ -11,7 +11,7 @@ require("scratch")
 require("vain")
 vain.widgets.terminal = "urxvt"
 require("misc.revelation")
-require("misc.eminent")
+--require("misc.eminent")
 -- }}}
 -- =====================================================================
 -- {{{ s_vars
@@ -47,28 +47,32 @@ borderwidth = 0
 sharedthemes    = "/usr/share/awesome/themes/"
 wicons		= config .. "/themes/icons"
 themedir	= config .. "/themes"
-themelap = themedir.."/redhalo/theme.lua"
-themehtpc = themedir.."/smoked/theme.lua"
+themelap	= "/redhalo/theme.lua"
+themehtpc	= "/redhalo/theme.lua"
+theme		= "/zenburn/theme.lua"
 
 if hostname == 'laptop' then
-    if not awful.util.file_readable(themelap) then
+    if not awful.util.file_readable(themedir..themelap) then
         themedir = sharedthemes
     end
-    beautiful.init(themelap)
+    beautiful.init(themedir..themelap)
 elseif hostname == 'htpc' then
-    if not awful.util.file_readable(themehtpc) then
+    if not awful.util.file_readable(themedir..themehtpc) then
         themedir = sharedthemes
     end
-    beautiful.init(themehtpc)
+    beautiful.init(themedir..themehtpc)
 else
-    if not awful.util.file_readable(theme) then
+    if not awful.util.file_readable(themedir..theme) then
         themedir = sharedthemes
     end
-    beautiful.init(theme)
+    beautiful.init(themedir..theme)
 end
 
 -- Notifications
+-- blue "#34bdef", green "#a6e22e", red "#f92671"
 require("misc.notifications")
+naughty.config.default_preset.position         = "top_right"
+naughty.config.presets.normal.border_color     = "grey"--beautiful.border_focus or '#535d6c'
 naughty.config.default_preset.border_width     = 0
 
 -- apps
@@ -84,8 +88,8 @@ layouts = {
 	awful.layout.suit.tile.left,        --2
 	awful.layout.suit.tile.bottom,      --3
 	awful.layout.suit.tile.top,         --4
-	--awful.layout.suit.fair,             --5
-	--awful.layout.suit.fair.horizontal,  --6
+	awful.layout.suit.fair,             --5
+	awful.layout.suit.fair.horizontal,  --6
 	awful.layout.suit.spiral,           --7
 	awful.layout.suit.spiral.dwindle,   --8
 	awful.layout.suit.max,              --9
@@ -176,23 +180,18 @@ comma.text = ","
 if hostname == 'htpc' then
 	--Volume widget
 	volicon = widget({ type = "imagebox" })
-	volicon.image = image(wicons .. "/him/vol.png")
+	volicon.image = image(wicons .. "/him/volw-green.png")
 	volwidget = widget({ type = "textbox" })
 	vicious.register(volwidget, vicious.widgets.volume, "$1% $2", 5, "Master")
 	volwidget:buttons(awful.util.table.join(
 	  awful.button(k_n, 1, function () sexec("amixer -q set Master toggle") end)
 	))
-	-- CPU widget
-	cpuicon = widget({ type = "imagebox" })
-	cpuicon.image = image(wicons .. "/him/cpuinfow.png")
-	cpuwidget = widget({ type = "textbox" })
-	vicious.register(cpuwidget, vicious.widgets.cpu, "$1%", 1)
 	-- RAM widget
 	memwidget = widget({ type = "textbox" })
 	vicious.register(memwidget, vicious.widgets.mem, "$1%", 30)
 	-- OS widget
 	osicon = widget({ type = "imagebox" })
-	osicon.image = image(wicons .. "/him/cpuinfo.png")
+	osicon.image = image(wicons .. "/him/cpuinfo-red.png")
 	oswidget = widget({ type = "textbox" })
 	vicious.register(oswidget, vicious.widgets.os, "$2", 120)
 	-- FS widget
@@ -206,20 +205,27 @@ if hostname == 'htpc' then
 	-- Netusage widget
 	dnicon = widget({ type = "imagebox" })
 	upicon = widget({ type = "imagebox" })
-	dnicon.image = image(wicons .. "/him/down.png")
-	upicon.image = image(wicons .. "/him/up.png")
+	dnicon.image = image(wicons .. "/him/downw-green.png")
+	upicon.image = image(wicons .. "/him/upw-red.png")
 	netwidget = widget({ type = "textbox" })
 	vicious.register(netwidget, vicious.widgets.net, "${eth0 down_kb} / ${eth0 up_kb}", 1)
+        cpuicon = widget({ type = "imagebox" })
+        cpuicon.image = image(wicons .. "/him/cpuinfow-blue.png")
+        cpuwidget = widget({ type = "textbox" })
+        vicious.register(cpuwidget, vicious.widgets.cpu, "$1%", 1)
+	timeicon = widget({ type = "imagebox" })
+	timeicon.image = image(wicons .. "/him/time-red.png")
 end
 
 if hostname == 'laptop' then
 	-- Battery widget
-	require("misc.bat_smapi")
+	--require("misc.bat_smapi")
 	baticon = widget({ type = "imagebox" })
-	baticon.image = image(wicons .. "/him/bat.png")
+	baticon.image = image(wicons .. "/him/bat-green.png")
 	batwidget = widget({ type = "textbox" })
 	--vicious.register(batwidget, vicious.widgets.bat_smapi, "$1$2% $3 $4", 10, "BAT0")
-	vicious.register(batwidget, misc.bat_smapi, "$1$2 $3 $4", 2, "BAT0")
+	vicious.register(batwidget, vicious.widgets.bat_smapi, "$1", 3, "BAT0")
+	--vicious.register(batwidget, misc.bat_smapi, "$1$2 $3 $4", 2, "BAT0")
 	-- from awesome-34's batteryrc
 	batwidget:add_signal('mouse::enter', function ()
 			   batinfo = { naughty.notify({ title      = "BAT0"
@@ -237,46 +243,76 @@ if hostname == 'laptop' then
 	--[[require("fan")
 	fanwidget = widget({ type = "textbox" })
 	vicious.register(fanwidget, fan, "$1rpm", 2)]]
-	wlanicon = widget({ type = "imagebox" })
-	wlanicon.image = image(wicons .. "/him/wifi.png")
-end
+        -- IBM
+        myhwmonbox = widget({ type = "textbox" })
+        function hwmon()
+	    local file = io.open("/sys/devices/platform/thinkpad_hwmon/fan1_input", "r")
+	    local fan = file:read("*n")
+	    file:close()
 
---[[ Bat Alt
-mybatterybox = widget({ type = "textbox" })
-function battery()
-	local output = ''
-	local batpath = "/sys/devices/platform/smapi/BAT0"
+	    local file = io.open("/sys/devices/platform/thinkpad_hwmon/temp1_input", "r")
+	    local temp = file:read("*n")
+	    temp = string.format(tonumber(temp)/1000)
+	    file:close()
 
-	local file = io.open(batpath .. "/power_now", "r")
-	local watt = file:read("*n")
-	file:close()
-
-	file = io.open(batpath .. "/remaining_percent", "r")
-	local percent = file:read("*n")
-	file:close()
-
-	file = io.open(batpath .. "/remaining_running_time", "r")
-	local time = file:read()
-	file:close()
-	if(state == "Discharging") then
-		if(percentage < 10) then
-			output = '<span color="red">' .. percentage .. '%</span>'
-		elseif(percentage < 40) then
-			output = '<span color="#FFA500">' .. percentage .. '%</span>'
-		else
-			output = '<span color="green">' .. percentage .. '%</span>'
-		end
-	else
-		output = '<span color="blue">' .. percentage .. '%</span>'
+    	    output = fan..'rmp '..temp..'°C'
+    	    return output
 	end
+        myhwmonbox.text = hwmon()
+        myhwmontimer = timer({ timeout = 30 })
+        myhwmontimer:add_signal("timeout", function() myhwmonbox.text = hwmon() end)
+        myhwmontimer:start()
+        cpuicon = widget({ type = "imagebox" })
+        cpuicon.image = image(wicons .. "/him/cpuinfow-red.png")
+        cpuwidget = widget({ type = "textbox" })
+        vicious.register(cpuwidget, vicious.widgets.cpu, "$1%", 1)
+        --[[ Bat Alt
+        mybatterybox = widget({ type = "textbox" })
+        function battery()
+    	    local output = ''
+    	    local batpath = "/sys/devices/platform/smapi/BAT0"
 
-	output = watt .. " " .. percent .. " " .. time
-	return output
-end 
-mybatterybox.text = battery()
-mybatterytimer = timer({ timeout = 30 })
-mybatterytimer:add_signal("timeout", function() mybatterybox.text = battery() end)
-mybatterytimer:start()]]
+    	    local file = io.open(batpath .. "/power_now", "r")
+    	    local watt = file:read("*n")
+    	    file:close()
+
+    	    file = io.open(batpath .. "/remaining_percent", "r")
+    	    local percent = file:read("*n")
+    	    file:close()
+
+    	    file = io.open(batpath .. "/remaining_running_time", "r")
+    	    local time = file:read()
+    	    file:close()
+    	    if(state == "Discharging") then
+    		    if(percentage < 10) then
+    			    output = '<span color="red">' .. percentage .. '%</span>'
+    		    elseif(percentage < 40) then
+    			    output = '<span color="#FFA500">' .. percentage .. '%</span>'
+    		    else
+    			    output = '<span color="green">' .. percentage .. '%</span>'
+    		    end
+    	    else
+    		    output = '<span color="blue">' .. percentage .. '%</span>'
+    	    end
+
+    	    output = watt .. " " .. percent .. " " .. time
+    	    return output
+        end
+        mybatterybox.text = battery()
+        mybatterytimer = timer({ timeout = 30 })
+        mybatterytimer:add_signal("timeout", function() mybatterybox.text = battery() end)
+        mybatterytimer:start()]]
+end
+-- Netcfg widget
+require("vicious.contrib")
+netcfgwidget = widget({ type = "textbox" })
+vicious.register(netcfgwidget, vicious.contrib.netcfg, "$1", 10)
+-- Textclock widget
+mytextclock = awful.widget.textclock({ align = "right" })
+-- Systray
+--mysystray = widget({ type = "systray" })
+wlanicon = widget({ type = "imagebox" })
+wlanicon.image = image(wicons .. "/him/wifi-blue.png")
 
 -- Awesompd
 require("awesompd.awesompd")
@@ -285,7 +321,7 @@ musicwidget 			= awesompd:create() -- Create awesompd widget
 musicwidget.font		= "MonteCarlo medium 10" -- Set widget font
 musicwidget.symbol		= "♪"
 musicwidget.symbolfont		= "MonteCarlo medium 9"
-musicwidget.symbolcolor		=  "white" -- purple: "#ce2c51"
+musicwidget.symbolcolor		= "#34bdef" -- purple: "#ce2c51"
 musicwidget.scrolling 		= true -- If true, the text in the widget will be scrolled
 musicwidget.output_size 	= 30 -- Set the size of widget in symbols
 musicwidget.update_interval 	= 10 -- Set the update interval in seconds
@@ -303,24 +339,14 @@ musicwidget:register_buttons({ { "", awesompd.MOUSE_LEFT, musicwidget:command_to
   			       { "", awesompd.MOUSE_SCROLL_DOWN, musicwidget:command_volume_down() },
   			       { "", awesompd.MOUSE_RIGHT, musicwidget:command_show_menu() } })
 musicwidget:run()
--- Netcfg widget
-require("vicious.contrib")
-netcfgwidget = widget({ type = "textbox" })
-vicious.register(netcfgwidget, vicious.contrib.netcfg, "$1", 10)
--- Thermal widget
-tempicon = widget({ type = "imagebox" })
-tempicon.image = image(wicons .. "/him/temp.png")
+-- CPU widget
+ -- Thermal widget
 tempwidget = widget({ type = "textbox" })
 if hostname == 'laptop' then
     vicious.register(tempwidget, vicious.widgets.thermal, "$1°C", 30, "thermal_zone0")
 elseif hostname == 'htpc' then
     vicious.register(tempwidget, vicious.widgets.thermal, "$1°C", 30, { "f71882fg.2560", "core"})
 end
--- Textclock widget
-mytextclock = awful.widget.textclock({ align = "right" })
-
--- Systray
---mysystray = widget({ type = "systray" })
 
 -- Create a wibox for each screen and add it
 mywibox = {}
@@ -395,7 +421,7 @@ for s = 1, screen.count() do
   if hostname == 'laptop' then
     mywibox[s].widgets = {
         {
-            mylauncher,-- spacer,
+            mylauncher,
 	    mytaglist[s],
 	    spacer, musicwidget.widget, spacer,
 	    mypromptbox[s],
@@ -404,10 +430,8 @@ for s = 1, screen.count() do
 	mylayoutbox[s],
 	s == 1 and mysystray or nil, spacer,
 	--mytextclock, seperator, spacer,
-	--fanwidget, spacer,
-	--wlanwidget, spacer,
-	tempwidget, spacer,
-	--mybatterybox, baticon, spacer,
+	myhwmonbox, spacer,
+	cpuwidget, spacer, cpuicon, spacer,
         batwidget, baticon, spacer,
 	netcfgwidget, spacer, wlanicon, spacer,
 	mytasklist[s],
@@ -423,15 +447,15 @@ for s = 1, screen.count() do
             layout = awful.widget.layout.horizontal.leftright
         },
 	mylayoutbox[s],
-	s == 1 and mysystray or nil, spacer,
-	mytextclock, seperator, spacer,
-	volwidget, spacer, volicon, spacer, seperator, spacer,
+	s == 1 and mysystray or nil, 
+	mytextclock, timeicon, 
+	volwidget, spacer, volicon, spacer, --seperator, spacer,
         fswidget, spacer,
 	oswidget, spacer, osicon, spacer,
 	tempwidget, spacer,
 	memwidget, spacer,
-	cpuwidget, spacer, cpuicon, spacer, seperator,
-	upicon, netwidget, dnicon, seperator, spacer,
+	cpuwidget, spacer, cpuicon, spacer, --seperator,
+	upicon, netwidget, dnicon,-- seperator, spacer,
 	netcfgwidget, spacer, wlanicon, spacer,
 	mytasklist[s],
         layout = awful.widget.layout.horizontal.rightleft
@@ -467,7 +491,7 @@ globalkeys = awful.util.table.join(
     -----
     awful.key(k_w,  "space", function () awful.layout.set(awful.layout.suit.floating)     end),
     -- Frequently used
-    --awful.key(k_a,  "d",   function () scratch.pad.toggle() end),
+    awful.key(k_ac,  "d",   function () scratch.pad.toggle() end),
     awful.key(k_a,  "s",      function () scratch.drop("urxvt -name urxvt_drop -e tmux", "bottom", "center", 1, 0.35 ) end),
     awful.key(k_a,  "a",      function () scratch.drop("urxvt -name urxvt_drop_l -e tmux", "bottom", "left", 0.4999, 0.37 ) end),
     awful.key(k_a,  "d",      function () scratch.drop("urxvt -name urxvt_drop_r -e tmux", "bottom", "right", 0.4999, 0.37 ) end),
@@ -475,7 +499,7 @@ globalkeys = awful.util.table.join(
     awful.key(k_a,  "g",      function () scratch.drop("gmpc", "center", "center", 0.7, 0.8 ) end),
     awful.key(k_a,  "^",      function () scratch.drop("urxvt -name urxvt_drop_t -e tmux", "top", "center", 1, 0.4 ) end),
     -- Mpd
-    awful.key(k_ws, "Down",  musicwidget:command_toggle()),
+    --awful.key(k_w, "Down",  musicwidget:command_toggle()),
     awful.key(k_ws, "Up",    musicwidget:command_volume_up()),
     awful.key(k_ws, "Down",  musicwidget:command_volume_down()),
     awful.key(k_ws, "Left",  musicwidget:command_prev_track()),
@@ -499,7 +523,7 @@ globalkeys = awful.util.table.join(
     awful.key(k_a,  "m",     function () awful.layout.set(awful.layout.suit.max.fullscreen)     end),
     awful.key(k_as, "m",     function () awful.layout.set(awful.layout.suit.magnifier)     end),
     awful.key(k_ac, "r",     function () awful.layout.set(awful.layout.suit.spiral)     end),
-    awful.key(k_as, "r",     function () awful.layout.set(awful.layout.suit.spiral.dwindle)     end),
+    --awful.key(k_as, "r",     function () awful.layout.set(awful.layout.suit.spiral.dwindle)     end),
     --awful.key(k_ac, "d",     function () awful.layout.set(vain.layout.browse)     end),
     --awful.key(k_ac, "a",     function () awful.layout.set(vain.layout.uselessfair)     end),
     awful.key(k_a,  "e",     revelation.revelation),
@@ -541,7 +565,7 @@ globalkeys = awful.util.table.join(
 	end),
 
     -- Naughty
-   awful.key(k_a,  "F1",     closeLastNaughtyMsg),
+   --awful.key(k_a,  "F1",     closeLastNaughtyMsg),
 
     -- Layout manipulation
     awful.key(k_a,  "j",
@@ -600,7 +624,7 @@ clientkeys = awful.util.table.join(
             debug_notify(c.name .. "\ntitlebar " .. colored_on)
         end
     end),
-    --awful.key(k_a,  "a",     function (c) scratch.pad.set(c, 0.60, 0.60, true) end),
+    awful.key(k_ac,  "a",     function (c) scratch.pad.set(c, 0.60, 0.60, true) end),
     awful.key(k_a,  "x",     function (c) c.fullscreen = not c.fullscreen  end),
     awful.key(k_a,  "c",     function (c) c:kill()                         end),
     awful.key(k_a,  "i",     awful.client.floating.toggle                     ),
@@ -946,11 +970,11 @@ client.add_signal("unfocus", function(c)
            if tags[s][t].selected then
                 tags[s][t].name = "[" .. tags[s][t].name .. "]"
            else]]
---                tags[s][t].name = tags[s][t].name:gsub("[%[%]]", "")
---           end
---        end)
---    end
---end
+                --tags[s][t].name = tags[s][t].name:gsub("[%[%]]", "")
+           --[[end
+        end)
+    end
+end]]
 -- }}}
 --
 -- =====================================================================

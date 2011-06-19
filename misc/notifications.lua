@@ -1,6 +1,15 @@
 -- Show fancy notifications for backlight and (eventually) volume hotkeys
 require("awful.util")
 
+green =	"#a6e22e"-- bg_focus
+brown = "#262729"-- bg_normal
+blue  = "#34bdef"-- fg_title
+red   = "#f92671"-- bg_urgent]]
+
+fg_bar = blue--beautiful.bg_focus or "#a6e22e"
+bg_bar = brown--beautiful.bg_normal or "#262729"
+bg     = "#262729"--beautiful.bg_normal or "#262729"
+
 function brightness_down()
 	brightness_adjust(-10)
 end
@@ -19,13 +28,13 @@ local bright_notification = nil
 local bright_icon = image(awful.util.getdir("config") .. "/themes/icons/guff/brightness.png")
 local bright_img = image.argb32(200, 50, nil)
 bright_img:draw_rectangle(0, 0, bright_img.width, bright_img.height, true,
-	beautiful.bg_normal)
+	bg)
 bright_img:insert(bright_icon, 0, 1)
 
 function brightness_notify(brightness)
 	local img = bright_img
-	img:draw_rectangle(60, 20, 130, 10, true, beautiful.bg_focus)
-	img:draw_rectangle(62, 22, 126 * brightness / 100, 6, true, beautiful.fg_focus)
+	img:draw_rectangle(60, 20, 130, 10, true, bg_bar)
+	img:draw_rectangle(62, 22, 126 * brightness / 100, 6, true, fg_bar)
 	
 	local id = nil
 	if bright_notification then id = bright_notification.id end
@@ -82,11 +91,11 @@ local vol_img = image.argb32(200, 50, nil)
 function volume_notify(volume)
 	local img = vol_img
 	img:draw_rectangle(0, 0, vol_img.width, vol_img.height, true,
-		beautiful.bg_normal)
+		bg)
 	local vol_icon = image(volume_get_icon())
 	img:insert(vol_icon, 0, 1)
-	img:draw_rectangle(60, 20, 130, 10, true, beautiful.bg_focus)
-	img:draw_rectangle(62, 22, 126 * volume / 100, 6, true, beautiful.fg_focus)
+	img:draw_rectangle(60, 20, 130, 10, true, bg_bar)
+	img:draw_rectangle(62, 22, 126 * volume / 100, 6, true, fg_bar)
 	
 	local id = nil
 	if vol_notification then id = vol_notification.id end

@@ -198,7 +198,7 @@ if hostname == 'htpc' then
   -- HMEMwidget
   memwidget = widget({ type = "textbox" })
   vicious.register(memwidget, vicious.widgets.mem, "$1%", 30)
-  
+
   -- HNETwidget
   dnicon = widget({ type = "imagebox" })
   upicon = widget({ type = "imagebox" })
@@ -206,24 +206,24 @@ if hostname == 'htpc' then
   upicon.image = image(wicons .. "/him/upw-green.png")
   netwidget = widget({ type = "textbox" })
   vicious.register(netwidget, vicious.widgets.net, "${enp4s0 down_kb} / ${enp4s0 up_kb}", 1)
-  
+
   -- HCPUwidget
   cpuicon = widget({ type = "imagebox" })
   cpuicon.image = image(wicons .. "/him/cpuinfow-blue.png")
   cpuwidget = widget({ type = "textbox" })
   vicious.register(cpuwidget, vicious.widgets.cpu, "$1%", 1)
-  
+
   -- HTEMPwidget
   tempwidget = widget({ type = "textbox" })
   vicious.register(tempwidget, vicious.widgets.thermal, "$1°C", 30, { "coretemp.0", "core"})
   --vicious.register(tempwidget, vicious.widgets.thermal, "$1°C", 30, "thermal_zone0")]]
-  
+
   -- HOSwidget
   --~ osicon = widget({ type = "imagebox" })
   --~ osicon.image = image(wicons .. "/him/cpuinfo-red.png")
   --~ oswidget = widget({ type = "textbox" })
   --~ vicious.register(oswidget, vicious.widgets.os, "$2", 120)
-  
+
   --[[ HFSwidget
   fswidget = widget({ type = "textbox" })
   vicious.register(fswidget, vicious.widgets.fs, '${/ avail_gb}G', 120)
@@ -232,7 +232,7 @@ if hostname == 'htpc' then
   -- the second/third is the percentage at which a line gets orange/red
   -- true = show only local filesystems
   disk.addToWidget(fswidget, 75, 90, true)]]
-  
+
 elseif hostname == 'laptop' then
 
   --[[ NETwidget (TODO)
@@ -242,7 +242,7 @@ elseif hostname == 'laptop' then
   vicious.contrib = require("vicious.contrib")
   netcfgwidget = widget({ type = "textbox" })
   vicious.register(netctlwidget, vicious.contrib.netctl, "$1", 10)]]
-  
+
     -- BATwidget
   baticon = widget({ type = "imagebox" })
   batwidget = widget({ type = "textbox" })
@@ -258,11 +258,11 @@ elseif hostname == 'laptop' then
     file = io.open(batpath .. "/remaining_percent", "r")
     local percent = file:read("*n")
     file:close()
-    
+
     if (state == "discharging") then
       if(percent < 5) then
         baticon.image = image(wicons .. "/him/bat-red.png")
-        --sexec("systemctl suspend")
+        sexec("systemctl suspend")
       elseif(percent < 15) then
         baticon.image = image(wicons .. "/him/bat-red.png")
       elseif(percent < 25) then
@@ -273,7 +273,7 @@ elseif hostname == 'laptop' then
     elseif (state == "charging") then
       baticon.image = image(wicons .. "/him/bat-blue.png")
     else
-      baticon.image = image(wicons .. "/him/bat-white.png") 
+      baticon.image = image(wicons .. "/him/bat-white.png")
     end
 
     file = io.open(batpath .. "/remaining_running_time", "r")
@@ -283,7 +283,7 @@ elseif hostname == 'laptop' then
     local file = io.open(batpath .. "/power_now", "r")
     local watt = file:read("*n")
     file:close()
-      
+
     if(state == "discharging") then
       output = percent .. "% " .. watt .. " " .. time .. "m"
     elseif (state == "charging") then
@@ -296,7 +296,7 @@ elseif hostname == 'laptop' then
     else
       output = "N/A"
     end
-    
+
     return output
   end
   batwidget.text = battery()
@@ -313,7 +313,7 @@ elseif hostname == 'laptop' then
   mybatterytimer = timer({ timeout = 6 })
   mybatterytimer:add_signal("timeout", function() batwidget.text = battery() end)
   mybatterytimer:start()
-  
+
   -- FANwidget
   fanicon = widget({ type = "imagebox" })
   fanicon.image = image(wicons .. "/him/fan-red.png")
@@ -322,7 +322,7 @@ elseif hostname == 'laptop' then
     local file = io.open("/sys/devices/platform/thinkpad_hwmon/fan1_input", "r")
     local fan = file:read("*n")
     file:close()
-    
+
     output = fan..'rpm'
     return output
   end
@@ -330,7 +330,7 @@ elseif hostname == 'laptop' then
   myfantimer = timer({ timeout = 6 })
   myfantimer:add_signal("timeout", function() fanwidget.text = fan() end)
   myfantimer:start()
-  
+
   -- TEMPwidget
   tempicon = widget({ type = "imagebox" })
   tempwidget = widget({ type = "textbox" })
@@ -339,10 +339,10 @@ elseif hostname == 'laptop' then
     local temp = file:read("*n")
     temp = tonumber(temp)/1000
     file:close()
-    
+
     if(temp > 85) then
       naughty.notify({text = ""..temp.."°C! (Suspending)"})
-      --sexec("sleep 5  && systemctl suspend")
+      sexec("sleep 5  && systemctl suspend")
     elseif(temp > 80) then
       naughty.notify({text = "Caution: "..temp.."°C!!"})
       sexec("sudo beep -f 800 -n -f 500 -n -f 300")
@@ -363,12 +363,12 @@ elseif hostname == 'laptop' then
   mytemptimer:add_signal("timeout", function() tempwidget.text = temp() end)
   mytemptimer:start()
 
-  -- CPUwidget  
+  -- CPUwidget
   cpuicon = widget({ type = "imagebox" })
   cpuicon.image = image(wicons .. "/him/cpuinfow-red.png")
   cpuwidget = widget({ type = "textbox" })
   vicious.register(cpuwidget, vicious.widgets.cpu, "$1%", 1)
-  
+
 end
 
 -- CLOCKwidget
@@ -409,7 +409,7 @@ mytaglist.buttons = awful.util.table.join(
                     )
 mytasklist = {}
 mytasklist.buttons =  awful.util.table.join(
-                        awful.button(k_n, 1, 
+                        awful.button(k_n, 1,
                           function (c)
                             if c == client.focus then
                                 c.minimized = true
@@ -426,7 +426,7 @@ mytasklist.buttons =  awful.util.table.join(
                         awful.button(k_n, 3,
                           function (c)
                             c=awful.client.floating
-                            c.toggle() 
+                            c.toggle()
                           end),
                         awful.button(k_n, 4,
                           function ()
@@ -460,7 +460,7 @@ for s = 1, screen.count() do
                                         end, mytasklist.buttons)
   -- Create the wibox
   mywibox[s] = awful.wibox({ position = "top", screen = s, border_width = borderwidth, height = barheight  })
-  
+
   -- Add widgets to the wibox - order matters
   if hostname == 'laptop' then
     mywibox[s].widgets = {
@@ -472,7 +472,7 @@ for s = 1, screen.count() do
       },
       mylayoutbox[s], spacer,
       mytextclock, spacer, clockicon, spacer,
-      fanwidget, spacer, tempwidget, spacer, 
+      fanwidget, spacer, tempwidget, spacer,
       cpuwidget, spacer, cpuicon, spacer,
       batwidget, spacer, baticon,
       --~ spacer, netctlwidget, spacer, neticon,
@@ -560,7 +560,7 @@ globalkeys = awful.util.table.join(
   awful.key(k_w,  "Up",    function () sexec("mpc -q -h 192.168.0.2 stop") end),
   awful.key(k_w,  "Left",  function () sexec("mpc -q -h 192.168.0.2 prev") end),
   awful.key(k_w,  "Right", function () sexec("mpc -q -h 192.168.0.2 next") end),
- 
+
   -- WM
   awful.key(k_a, "Tab",     awful.tag.history.restore),
   awful.key(k_a, "e",       revelation),
@@ -580,8 +580,8 @@ globalkeys = awful.util.table.join(
   awful.key(k_ac, "l",      function () awful.tag.incncol(-1)         end),
   awful.key(k_ac, "0",      function () awful.tag.setncol(1)          end),
   awful.key(k_a, "0",       function () awful.tag.setnmaster(1)       end),
-  awful.key(k_as, "+",      function () vain.util.useless_gaps_resize(2) end),
-  awful.key(k_as, "-",      function () vain.util.useless_gaps_resize(-2) end),
+  awful.key(k_as, "+",      function () vain.util.useless_gaps_resize(3) end),
+  awful.key(k_as, "-",      function () vain.util.useless_gaps_resize(-3) end),
   awful.key(k_as, "o",      function () mypromptbox[mouse.screen]:run() end),
   awful.key(k_as, "l",
     function ()
@@ -650,7 +650,7 @@ elseif hostname == 'htpc' then
     awful.key(k_n,  "XF86AudioPrev",         function () sexec("spotifycmd prev") end),
     awful.key(k_n,  "XF86AudioNext",         function () sexec("spotifycmd next") end),
     awful.key(k_n,  "XF86AudioStop",         function () sexec("spotifycmd stop") end),
-    awful.key(k_n,  "XF86Launch1",           function () sexec("mpc toggle") end),   
+    awful.key(k_n,  "XF86Launch1",           function () sexec("mpc toggle") end),
     awful.key(k_n,  "XF86Launch2",           function () sexec("mpc prev") end),
     awful.key(k_n,  "XF86Launch3",           function () sexec("mpc next") end),
     awful.key(k_n,  "XF86Launch4",           function () sexec("mpc stop") end)
@@ -747,7 +747,7 @@ root.keys(globalkeys)
 awful.rules.rules = {
   -- All clients will match this rule.
   { rule = {},
-      properties = { 
+      properties = {
         border_width         = beautiful.border_width,
         border_color         = beautiful.border_normal,
         buttons              = clientbuttons,
@@ -830,7 +830,7 @@ awful.rules.rules = {
   { rule = { class = "Vlc", role= "vlc-playlist" },
     properties = { geometry = { width = 475, height = 320, x = 0, y=16 } }
   },
-  
+
   -- 5:play
   { rule = { class = "VirtualBox" },
     properties = { tag = tags[1][5], floating = true },
@@ -861,7 +861,7 @@ awful.rules.rules = {
     properties = { tag = tags[1][6] },
     callback = awful.client.setslave
   },
-  
+
   { rule = { class = "Gimp", role = "gimp-image-window" },
     properties = { tag = tags[1][6], switchtotag = true },
     callback = awful.client.setmaster
@@ -957,15 +957,15 @@ client.add_signal("focus",
   function (c)
     c.border_color = beautiful.border_focus
     c.border_color = beautiful.border_focus
-    --c.opacity = 1
+    c.opacity = 1
   end)
 
 client.add_signal("unfocus",
   function(c)
     c.border_color = beautiful.border_normal
-    --c.opacity = 0.9
+    c.opacity = 1
   end)
-  
+
 -- }}}
 --
 -- =====================================================================

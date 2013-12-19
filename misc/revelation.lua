@@ -11,6 +11,7 @@
 
 local awful = require('awful')
 local aw_rules = require('awful.rules')
+local vain = require('vain')
 local pairs = pairs
 local setmetatable = setmetatable
 local table = table
@@ -29,7 +30,7 @@ module("revelation")
 
 config = {
     -- Name of expose tag.
-    tag_name = "Revelation",
+    tag_name = "lel",
 
     -- Match function can be defined by user.
     -- Must accept a `rule` and `client` and return `boolean`.
@@ -72,6 +73,7 @@ function match_clients(rule, clients, t)
 
             awful.client.toggletag(t, c)
             c.minimized = false
+            c.opacity = 0.8
         end
     end
     return clients
@@ -123,7 +125,7 @@ function expose(rule, s)
 
     local t = awful.tag.new({config.tag_name},
                             scr,
-                            awful.layout.suit.fair)[1]
+                            vain.layout.uselessfair.horizontal)[1]
     awful.tag.viewonly(t, t.screen)
     match_clients(rule, capi.client.get(scr), t)
     local function restore()
@@ -142,14 +144,14 @@ function expose(rule, s)
 
     capi.keygrabber.run(keyboardhandler(restore))
 
-    
+
     local pressedMiddle = false
     capi.mousegrabber.run(function(mouse)
         local c = awful.mouse.client_under_pointer()
         if mouse.buttons[1] == true then
             selectfn(restore)(c)
             return false
-        elseif mouse.buttons[2] == true and pressedMiddle == false and c ~= nil then -- is true whenever the button is down. 
+        elseif mouse.buttons[2] == true and pressedMiddle == false and c ~= nil then -- is true whenever the button is down.
             pressedMiddle = true -- extra variable needed to prevent script from spam-closing windows
             c:kill()
             return true

@@ -56,6 +56,8 @@ function arrange(p)
         local at_x = 0
         local at_y = 0
         local remaining_clients = #cls
+        local width = math.floor(wa.width / num_x)
+        local height = math.floor(wa.height / num_y)
 
         -- We start the first row. Left-align by limiting the number of
         -- available slots.
@@ -74,16 +76,40 @@ function arrange(p)
 
             -- Calc geometry.
             local g = {}
-            g.width = wa.width / num_x
-            g.height = wa.height / num_y
-            g.x = wa.x + this_x * g.width
-            g.y = wa.y + this_y * g.height
+            if this_x == (num_x - 1)
+            then
+                g.width = wa.width - (num_x - 1) * width
+            else
+                g.width = width
+            end
+            if this_y == (num_y - 1)
+            then
+                g.height = wa.height - (num_y - 1) * height
+            else
+                g.height = height
+            end
+            g.x = wa.x + this_x * width
+            g.y = wa.y + this_y * height
             if useless_gap > 0
             then
-                g.width = g.width - 2 * useless_gap
-                g.height = g.height - 2 * useless_gap
-                g.x = g.x + useless_gap
-                g.y = g.y + useless_gap
+                -- Top and left clients are shrinked by two steps and
+                -- get moved away from the border. Other clients just
+                -- get shrinked in one direction.
+                if this_x == 0
+                then
+                    g.width = g.width - 2 * useless_gap
+                    g.x = g.x + useless_gap
+                else
+                    g.width = g.width - useless_gap
+                end
+
+                if this_y == 0
+                then
+                    g.height = g.height - 2 * useless_gap
+                    g.y = g.y + useless_gap
+                else
+                    g.height = g.height - useless_gap
+                end
             end
             c:geometry(g)
             remaining_clients = remaining_clients - 1

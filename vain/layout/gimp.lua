@@ -1,3 +1,8 @@
+-- Please note: Since Gimp 2.8, this layout is deprecated and no longer
+-- maintained. It may still work but I don't use it anymore. Gimp 2.8
+-- has a "single window mode" which does all I need.
+
+
 -- Grab environment.
 local ipairs = ipairs
 local table = table
@@ -10,31 +15,20 @@ module("vain.layout.gimp")
 -- Only meant for internal use.
 local named_rules =
 {
-    toolbox =
-    {
+    toolbox = {
         rule = { class = "Gimp", role = "gimp-toolbox" },
-        properties =
-        {
-            floating = false
-        },
+        properties = { floating = false, geometry = { width = 90 } },
     },
 
-    dock =
-    {
+    dock =  {
         rule = { class = "Gimp", role = "gimp-dock" },
-        properties =
-        {
-            floating = false
-        },
+        properties = { floating = false },
     },
 
-    image =
-    {
+    image = {
         rule = { class = "Gimp", role = "gimp-image-window" },
-        properties =
-        {
-            floating = false
-        }
+        properties = { floating = false }, 
+        --callback = awful.titlebar.add
     },
 }
 
@@ -123,8 +117,7 @@ function arrange(p)
                     g.y = wa.y + (i - 1) * cascade_offset
                     g.width = mainwid - current_cascade_offset
                     g.height = wa.height - current_cascade_offset
-                elseif main_type == 3
-                then
+                else
                     -- Stack windows vertically.
                     g.x = wa.x
                     g.y = wa.y + (i - 1) * mainhei
@@ -134,10 +127,20 @@ function arrange(p)
 
                 if useless_gap > 0
                 then
+                    -- If we're stacking and this is not the topmost
+                    -- client, then only reduce height once. Otherwise
+                    -- it's either the topmost client or we're not
+                    -- stacking, hence add the useless_gap on both
+                    -- sides.
+                    if main_type >= 3 and i ~= 1
+                    then
+                        g.height = g.height - useless_gap
+                    else
+                        g.height = g.height - 2 * useless_gap
+                        g.y = g.y + useless_gap
+                    end
                     g.width = g.width - 2 * useless_gap
-                    g.height = g.height - 2 * useless_gap
                     g.x = g.x + useless_gap
-                    g.y = g.y + useless_gap
                 end
 
                 c:geometry(g)
@@ -166,9 +169,10 @@ function arrange(p)
 
                 if useless_gap > 0
                 then
-                    g.width = g.width - 2 * useless_gap
+                    -- Never push slaves in x direction because the main
+                    -- windows already added a useless_gap there.
+                    g.width = g.width - useless_gap
                     g.height = g.height - 2 * useless_gap
-                    g.x = g.x + useless_gap
                     g.y = g.y + useless_gap
                 end
 

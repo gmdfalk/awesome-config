@@ -3,26 +3,32 @@ local ipairs = ipairs
 local tonumber = tonumber
 local beautiful = beautiful
 local awful = awful
-local math = math
+local print = print
 
-module("vain.layout.browse")
+module("vain.layout.cascadebrowse")
 
+cascade_offset_x = 5
+cascade_offset_y = 32
 extra_padding = 0
 
-name = "browse"
+name = "cascadebrowse"
 function arrange(p)
 
     -- Layout with one fixed column meant for the browser window. Its
     -- width is calculated according to mwfact. Other clients are
-    -- stacked vertically in a slave column on the right.
+    -- cascaded or "tabbed" in a slave column on the right.
 
+    -- It's a bit hard to demonstrate the behaviour with ASCII-images...
+    --
     --       (1)              (2)              (3)              (4)
     --   +-----+---+      +-----+---+      +-----+---+      +-----+---+
-    --   |     |   |      |     |   |      |     | 3 |      |     | 4 |
-    --   |     |   |      |     |   |      |     |   |      |     +---+
-    --   |  1  |   |  ->  |  1  | 2 |  ->  |  1  +---+  ->  |  1  | 3 |
-    --   |     |   |      |     |   |      |     | 2 |      |     +---+
-    --   |     |   |      |     |   |      |     |   |      |     | 2 |
+    --   |     |   |      |     |   |      |     |   |      |     | 4 |
+    --   |     |   |      |     | 2 |      |     | 3 |      |     |   |
+    --   |  1  |   |  ->  |  1  |   |  ->  |  1  |   |  ->  |  1  +---+
+    --   |     |   |      |     +---+      |     +---+      |     | 3 |
+    --   |     |   |      |     |   |      |     | 2 |      |     |---|
+    --   |     |   |      |     |   |      |     |---|      |     | 2 |
+    --   |     |   |      |     |   |      |     |   |      |     |---|
     --   +-----+---+      +-----+---+      +-----+---+      +-----+---+
 
     -- A useless gap (like the dwm patch) can be defined with
@@ -44,12 +50,22 @@ function arrange(p)
     -- Make slave windows overlap main window? Do this if ncol is 1.
     local overlap_main = awful.tag.getncol(t)
 
+    -- Minimum space for slave windows? See cascade.lua.
+    local num_c = awful.tag.getnmaster(t)
+    local how_many = #cls - 1
+    if how_many < num_c
+    then
+        how_many = num_c
+    end
+    local current_cascade_offset_x = cascade_offset_x * (how_many - 1)
+    local current_cascade_offset_y = cascade_offset_y * (how_many - 1)
+
     if #cls > 0
     then
         -- Main column, fixed width and height.
         local c = cls[#cls]
         local g = {}
-        local mainwid = math.floor(wa.width * mwfact)
+        local mainwid = wa.width * mwfact
         local slavewid = wa.width - mainwid
 
         if overlap_main == 1
@@ -90,36 +106,20 @@ function arrange(p)
         -- Remaining clients stacked in slave column, new ones on top.
         if #cls > 1
         then
-            local slavehei = math.floor(wa.height / (#cls - 1))
             for i = (#cls - 1),1,-1
             do
                 c = cls[i]
                 g = {}
-                g.width = slavewid
-                if i == (#cls - 1)
-                then
-                    g.height = wa.height - (#cls - 2) * slavehei
-                else
-                    g.height = slavehei
-                end
-                g.x = wa.x + mainwid
-                g.y = wa.y + (i - 1) * slavehei
+                g.width = slavewid - current_cascade_offset_x
+                g.height = wa.height - current_cascade_offset_y
+                g.x = wa.x + mainwid + (how_many - i) * cascade_offset_x
+                g.y = wa.y + (i - 1) * cascade_offset_y
                 if useless_gap > 0
                 then
                     g.width = g.width - 2 * useless_gap
-                    if i == 1
-                    then
-                        -- This is the topmost client. Push it away from
-                        -- the screen border (add to g.y and subtract
-                        -- useless_gap once) and additionally shrink its
-                        -- height.
-                        g.height = g.height - 2 * useless_gap
-                        g.y = g.y + useless_gap
-                    else
-                        -- All other clients.
-                        g.height = g.height - useless_gap
-                    end
+                    g.height = g.height - 2 * useless_gap
                     g.x = g.x + useless_gap
+                    g.y = g.y + useless_gap
                 end
                 c:geometry(g)
             end

@@ -1,5 +1,8 @@
 -- Show fancy notifications for backlight and (eventually) volume hotkeys
 require("awful.util")
+config		= awful.util.getdir("config")
+themedir	= config .. "/themes"
+wicons		= themedir .. "/icons"
 
 green =	"#a6e22e"-- bg_focus
 brown = "#262729"-- bg_normal
@@ -11,22 +14,22 @@ bg_bar = brown--beautiful.bg_normal or "#262729"
 bg     = "#262729"--beautiful.bg_normal or "#262729"
 
 function brightness_down()
-	brightness_adjust(-10)
+	brightness_adjust(-1)
 end
 
 function brightness_up()
-	brightness_adjust(10)
+	brightness_adjust(1)
 end
 
 function brightness_adjust(inc)
-	--os.execute("xbacklight -inc " .. inc .. " > /dev/null 2>&1")
-	local brightness = tonumber(awful.util.pread("xbacklight -get"))
+	--local brightness = tonumber(awful.util.pread("xbacklight -get"))
+	local brightness = tonumber(awful.util.pread("cat /sys/class/backlight/acpi_video0/brightness"))
 	brightness_notify(brightness)
 end
 
 local bright_notification = nil
-local bright_icon = image(awful.util.getdir("config") .. "/themes/icons/guff/brightness.png")
-local bright_img = image.argb32(200, 50, nil)
+local bright_icon = image(wicons .. "/guff/brightness.png")
+local bright_img = image.argb32(212, 50, nil)
 bright_img:draw_rectangle(0, 0, bright_img.width, bright_img.height, true,
 	bg)
 bright_img:insert(bright_icon, 0, 1)
@@ -34,12 +37,13 @@ bright_img:insert(bright_icon, 0, 1)
 function brightness_notify(brightness)
 	local img = bright_img
 	img:draw_rectangle(60, 20, 130, 10, true, bg_bar)
-	img:draw_rectangle(62, 22, 126 * brightness / 100, 6, true, fg_bar)
+	--img:draw_rectangle(62, 22, 126 * brightness / 100, 6, true, fg_bar)
+	img:draw_rectangle(62, 22, 126 * brightness / 15, 6, true, fg_bar)
 	
 	local id = nil
 	if bright_notification then id = bright_notification.id end
 	bright_notification = naughty.notify(
-		{ icon = img, replaces_id = id, text = "\n" .. math.ceil(brightness) .. "%",
+		{ icon = img, replaces_id = id, text = "\n" .. math.ceil(brightness) .. "  ",
 		  font = "Sans Bold 10" }
 	)
 end
@@ -82,7 +86,7 @@ function volume_get_icon()
 	elseif volume > 0 then icon_str = "low.png"
 	elseif volume == 0 then icon_str = "off.png" end
 	if is_muted then icon_str = "muted.png" end
-	return awful.util.getdir("config") .. "/themes/icons/guff/volume-" .. icon_str
+	return wicons .. "/guff/volume-" .. icon_str
 end
 
 local vol_notification = nil

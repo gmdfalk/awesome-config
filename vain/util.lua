@@ -1,6 +1,7 @@
 -- Grab environment.
 local awful = awful
 local naughty = naughty
+local beautiful = beautiful
 local mouse = mouse
 local pairs = pairs
 local ipairs = ipairs
@@ -10,6 +11,7 @@ local client = client
 local io = io
 local screen = screen
 local math = math
+local tonumber = tonumber
 
 module("vain.util")
 
@@ -163,6 +165,15 @@ function move_mouse_away(target)
     mouse.coords(g)
 end
 
+-- Center the mouse on the current screen.
+function center_mouse()
+    local mg = screen[mouse.screen].geometry
+    local g = {}
+    g.x = mg.x + mg.width * 0.5
+    g.y = mg.y + mg.height * 0.5
+    mouse.coords(g)
+end
+
 -- Magnify a client: Set it to "float" and resize it.
 function magnify_client(c)
     awful.client.floating.set(c, true)
@@ -182,6 +193,136 @@ end
 -- See also: http://lua-users.org/wiki/StringTrim
 function trim(s)
     return s:match "^%s*(.-)%s*$"
+end
+
+-- Split a string.
+-- See also: http://lua-users.org/wiki/SplitJoin
+function split(s, sep)
+    local sep, fields = sep or ":", {}
+    local pattern = string.format("([^%s]+)", sep)
+    string.gsub(s, pattern, function(c) fields[#fields+1] = c end)
+    return fields
+end
+
+-- Read the nice value of pid from /proc.
+function get_nice_value(pid)
+    local n = first_line('/proc/' .. pid .. '/stat')
+    if n == nil
+    then
+        -- This should not happen. But I don't want to crash, either.
+        return 0
+    end
+
+    -- Remove pid and tcomm. This is necessary because tcomm may contain
+    -- nasty stuff such as whitespace or additional parentheses...
+    n = string.gsub(n, '.*%) ', '')
+
+    -- Field number 17 now is the nice value.
+    fields = split(n, ' ')
+    return tonumber(fields[17])
+end
+
+-- To be used as a signal handler for "focus":
+--    client.add_signal("focus", vain.util.niceborder_focus)
+-- This requires beautiful.border_focus{,_highprio,_lowprio}.
+function niceborder_focus(c)
+    local n = get_nice_value(c.pid)
+    if n == 0
+    then
+        c.border_color = beautiful.border_focus
+    elseif n < 0
+    then
+        c.border_color = beautiful.border_focus_highprio
+    else
+        c.border_color = beautiful.border_focus_lowprio
+    end
+end
+
+-- To be used as a signal handler for "unfocus":
+--    client.add_signal("unfocus", vain.util.niceborder_unfocus)
+-- This requires beautiful.border_normal{,_highprio,_lowprio}.
+function niceborder_unfocus(c)
+    local n = get_nice_value(c.pid)
+    if n == 0
+    then
+        c.border_color = beautiful.border_normal
+    elseif n < 0
+    then
+        c.border_color = beautiful.border_normal_highprio
+    else
+        c.border_color = beautiful.border_normal_lowprio
+    end
+end
+
+-- An internal function: Show the next non-empty tag in the given
+-- direction (may be 1 = seek right or -1 = seek left). Don't use this
+-- function in your code, use tag_viewnext_nonempty() or
+-- tag_viewprev_nonempty().
+local function tag_viewdirection_nonempty(direction, screenuserdata)
+    -- Get screen index, the current tag, its index and all existing
+    -- tags on the current screen.
+    local screeni = screenuserdata and screenuserdata.index or mouse.screen
+    local t = awful.tag.selected(screeni)
+    local start = awful.tag.getidx(t)
+    local tags = screen[screeni]:tags()
+
+    -- Maybe no tag is shown at all. Bail out.
+    if start == nil
+    then
+        return
+    end
+
+    local i = start + direction
+
+    -- Wrap indices. That's a little annoying since lua uses 1-based
+    -- indexing.
+    i = ((i - 1) % #tags) + 1
+
+    -- If all tags are empty, we will at some point return to i = start.
+    while i ~= start
+    do
+        -- Got a tag with clients! Now calculate offset and show it.
+        if #(tags[i]:clients()) ~= 0
+        then
+            awful.tag.viewidx(i - start, screenuserdata)
+            return
+        end
+
+        i = i + direction
+        i = ((i - 1) % #tags) + 1
+    end
+end
+
+-- Show the next non-empty tag.
+function tag_viewnext_nonempty(screenuserdata)
+    tag_viewdirection_nonempty( 1, screenuserdata)
+end
+
+-- Show the previous non-empty tag.
+function tag_viewprev_nonempty(screenuserdata)
+    tag_viewdirection_nonempty(-1, screenuserdata)
+end
+
+-- lain loans
+function useless_gaps_resize(thatmuch)
+    beautiful.useless_gap_width = tonumber(beautiful.useless_gap_width) + thatmuch
+    awful.layout.arrange(mouse.screen)
+end
+
+-- Non-empty tag browsing
+-- direction in {-1, 1} <-> {previous, next} non-empty tag
+function tag_view_nonempty(direction, sc)
+  local s = sc or mouse.screen or 1
+  local scr = screen[s]
+  local tags = awful.tag.selectedlist(mouse.screen)
+
+
+  for i = 1, #tags[s] do
+      awful.tag.viewidx(direction,s)
+      if #awful.client.visible(s) > 0 then
+          return
+      end
+  end
 end
 
 -- vim: set et :

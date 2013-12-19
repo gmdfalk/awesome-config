@@ -1,146 +1,167 @@
 -- revelation.lua
--- This is a modification of the original awesome library that implemented
--- expose like behavior.
 --
--- @author Perry Hargrave (aka bioe007)
---          perry)dot(hargrave)at(gmail.com
--- awesome v3.4-20-g8e02306 (Closing In)
+-- Library that implements Expose like behavior.
 --
--- original file information:
--- @author Espen Wiborg &lt;espenhw@grumblesmurf.org&gt;
--- @author Julien Danjou &lt;julien@danjou.info&gt;
+-- @author Perry Hargrave resixian@gmail.com
+-- @author Espen Wiborg espenhw@grumblesmurf.org
+-- @author Julien Danjou julien@danjou.info
+--
 -- @copyright 2008 Espen Wiborg, Julien Danjou
 --
--- USE:
--- 1. save this file as $HOME/.config/awesome/revelation.lua
--- 2. put near the top of your rc.lua
---          require("revelation")
--- 3. make a global keybinding for revelation in your rc.lua:
---          awful.key({ modkey }, "e",  revelation.revelation)
--- 4. reload rc.lua and try the keybinding. It should bring all clients to the
--- current tag and set the layout to fair.  You can focus clients with
--- cursor(arrow) or 'hjkl' keys then press <enter> to select or <escape> to
--- abort
---
--- NOTES: I have dumbed this down to simply merge all clients to the current tag
--- the class filter is of little use (to me?) but I could reimplement it
--- if anyone is interested
---
-local math = math
-local table = table
+
+local awful = require('awful')
+local aw_rules = require('awful.rules')
 local pairs = pairs
-local button = button
-local awful = awful
-local capi =
-{
-  tag = tag,
-  client = client,
-  keygrabber = keygrabber,
-  mouse = mouse,
-  screen = screen
+local setmetatable = setmetatable
+local table = table
+local capi = {
+    tag = tag,
+    client = client,
+    keygrabber = keygrabber,
+    mousegrabber = mousegrabber,
+    mouse = mouse,
+    screen = screen
 }
-local print = print
---- Exposé implementation
+
+local clientData = {} -- table that holds the positions and sizes of floating clients
+
 module("revelation")
 
---{{{ clients
--- a now unused filter to grab clients based on their class
---
--- @param class the class string to find
--- @s the screen
-function clients(class, s)
-  local clients
-  if class then
-    clients = {}
-    for k, c in pairs(capi.client.get(s)) do
-      if c.class == class then
-        table.insert(clients, c)
-      end
-    end
-  else
-    clients = capi.client.get(s)
-  end
-  return clients
-end
---}}}
+config = {
+    -- Name of expose tag.
+    tag_name = "Revelation",
 
---{{{ selectfn
--- executed when user selects a client from expose view
+    -- Match function can be defined by user.
+    -- Must accept a `rule` and `client` and return `boolean`.
+    -- The rule forms follow `awful.rules` syntax except we also check the
+    -- special `rule.any` key. If its true, then we use the `match.any` function
+    -- for comparison.
+    match = {
+        exact = aw_rules.match,
+        any   = aw_rules.match_any
+    },
+}
+
+-- Executed when user selects a client from expose view.
 --
--- @param restore function to reset the current tags view
+-- @param restore Function to reset the current tags view.
 function selectfn(restore)
-  return function(c)
-    restore()
-    -- Pop to client tag
-    awful.tag.viewonly(c:tags()[1], c.screen)
-    -- Focus and raise
-    capi.client.focus = c
-    c:raise()
-  end
+    return function(c)
+        restore()
+        -- Pop to client tag
+        awful.tag.viewonly(c:tags()[1], c.screen)
+        -- Focus and raise
+        capi.client.focus = c
+        c:raise()
+    end
 end
---}}}
 
---{{{ keyboardhandler
--- Returns keyboardhandler.
+-- Tags all matching clients with tag t
+-- @param rule The rule. Conforms to awful.rules syntax.
+-- @param clients A table of clients to check.
+-- @param t The tag to give matching clients.
+function match_clients(rule, clients, t)
+    local mf = rule.any and config.match.any or config.match.exact
+    for _, c in pairs(clients) do
+        if mf(c, rule) then
+            -- Store geometry before setting their tags
+            if awful.client.floating.get(c) then
+                clientData[c] = c:geometry()
+                awful.client.floating.set(c, false)
+            end
+
+            awful.client.toggletag(t, c)
+            c.minimized = false
+        end
+    end
+    return clients
+end
+
 -- Arrow keys and 'hjkl' move focus, Return selects, Escape cancels. Ignores
 -- modifiers.
 --
 -- @param restore a function to call if the user presses escape
+-- @return keyboardhandler
 function keyboardhandler (restore)
-  return function (mod, key, event)
-    if event ~= "press" then return true end
-    -- translate vim-style home keys to directions
-    if key == "j" or key == "k" or key == "h" or key == "l" then
-      if key == "j" then
-        key = "Down"
-      elseif key == "k" then
-        key = "Up"
-      elseif key == "h" then
-        key = "Left"
-      elseif key == "l" then
-        key = "Right"
-      end
+    return function (mod, key, event)
+        if event ~= "press" then return true end
+        -- translate vim-style home keys to directions
+        if key == "j" or key == "k" or key == "h" or key == "l" then
+            if key == "j" then
+                key = "Down"
+            elseif key == "k" then
+                key = "Up"
+            elseif key == "h" then
+                key = "Left"
+            elseif key == "l" then
+                key = "Right"
+            end
+        end
+
+        --
+        if key == "Escape" then
+            restore()
+            return false
+        elseif key == "Return" then
+            selectfn(restore)(capi.client.focus)
+            return false
+        elseif key == "Left" or key == "Right" or
+            key == "Up" or key == "Down" then
+            awful.client.focus.bydirection(key:lower())
+        end
+        return true
+    end
+end
+
+-- Implement Exposé (ala Mac OS X).
+--
+-- @param rule A table with key and value to match. [{class=""}]
+-- @param s The screen to consider clients of. [mouse.screen].
+function expose(rule, s)
+    local rule = rule or {class=""}
+    local scr = s or capi.mouse.screen
+
+    local t = awful.tag.new({config.tag_name},
+                            scr,
+                            awful.layout.suit.fair)[1]
+    awful.tag.viewonly(t, t.screen)
+    match_clients(rule, capi.client.get(scr), t)
+    local function restore()
+        awful.tag.history.restore()
+        t.screen = nil
+        capi.keygrabber.stop()
+        capi.mousegrabber.stop()
+
+        for _, c in pairs(capi.client.get(src)) do
+            if clientData[c] then
+                c:geometry(clientData[c]) -- Restore positions and sizes
+                awful.client.floating.set(c, true)
+            end
+        end
     end
 
-    --
-    if key == "Escape" then
-      restore()
-      return false
-    elseif key == "Return" then
-      selectfn(restore)(capi.client.focus)
-      return false
-    elseif key == "Left" or key == "Right" or
-      key == "Up" or key == "Down" then
-      awful.client.focus.bydirection(key:lower())
-    end
-    return true
-  end
+    capi.keygrabber.run(keyboardhandler(restore))
+
+    
+    local pressedMiddle = false
+    capi.mousegrabber.run(function(mouse)
+        local c = awful.mouse.client_under_pointer()
+        if mouse.buttons[1] == true then
+            selectfn(restore)(c)
+            return false
+        elseif mouse.buttons[2] == true and pressedMiddle == false and c ~= nil then -- is true whenever the button is down. 
+            pressedMiddle = true -- extra variable needed to prevent script from spam-closing windows
+            c:kill()
+            return true
+        elseif mouse.buttons[2] == false and pressedMiddle == true then
+            pressedMiddle = false
+        end
+
+        return true
+        --Strange but on my machine only fleur worked as a string.
+        --stole it from
+        --https://github.com/Elv13/awesome-configs/blob/master/widgets/layout/desktopLayout.lua#L175
+    end,"fleur")
 end
---}}}
 
---{{{ revelation
--- Implement Exposé (from Mac OS X).
--- @param class The class of clients to expose, or nil for all clients.
--- @param fn A binary function f(t, n) to set the layout for tag t for n
--- clients, or nil for the default layout.
--- @param s The screen to consider clients of, or nil for "current screen".
-function revelation(class, fn, s)
-  local scr = s or capi.mouse.screen
-  local t = capi.screen[scr]:tags()[1]
-  local oldlayout = awful.tag.getproperty( t, "layout" )
-
-  awful.tag.viewmore( capi.screen[scr]:tags(), t.screen )
-  awful.layout.set(awful.layout.suit.fair,t)
-
-  local function restore()
-    awful.layout.set(oldlayout,t)
-    awful.tag.viewonly(t)
-
-    capi.keygrabber.stop()
-  end
-
-  capi.keygrabber.run(keyboardhandler(restore))
-end
---}}}
-
--- vim:set ft=lua fdm=marker ts=4 sw=4 et ai si: --
+setmetatable(_M, { __call = function(_, ...) return expose(...) end })

@@ -11,15 +11,31 @@ local os = os
 local pairs = pairs
 local tonumber = tonumber
 local vain = vain
+local type = type
+local capi = { wibox = wibox }
+local table = table
 
 module("vain.widgets")
 
 terminal = ''
 
+-- If vain.terminal is a string, e.g. "xterm", then "xterm -e " .. cmd is
+-- run. But if vain.terminal is a function, then terminal(cmd) is run.
+local function run_in_terminal(cmd)
+    if type(terminal) == "function"
+    then
+        terminal(cmd)
+    elseif type(terminal) == "string"
+    then
+        awful.util.spawn(terminal .. ' -e ' .. cmd)
+    end
+end
+
 -- System load
 function systemload(args)
     local args = args or {}
-    local refresh_timeout = args.timeout or 10
+    local refresh_timeout = args.refresh_timeout or 10
+    local show_all = args.show_all or false
 
     local mysysload = widget({ type = "textbox" })
     local mysysloadupdate = function()
@@ -27,8 +43,14 @@ function systemload(args)
         local ret = f:read("*all")
         f:close()
 
-        local a, b, c = string.match(ret, "([^%s]+) ([^%s]+) ([^%s]+)")
-        mysysload.text = string.format("%s %s %s", a, b, c)
+        if show_all
+        then
+            local a, b, c = string.match(ret, "([^%s]+) ([^%s]+) ([^%s]+)")
+            mysysload.text = string.format("%s %s %s", a, b, c)
+        else
+            local a = string.match(ret, "([^%s]+) ")
+            mysysload.text = string.format("%s", a)
+        end
         mysysload.text = ' <span color="' .. beautiful.fg_urgent .. '">'
                          .. mysysload.text .. '</span> '
     end
@@ -39,10 +61,134 @@ function systemload(args)
     mysysload:buttons(awful.util.table.join(
         awful.button({}, 0,
             function()
-                awful.util.spawn(terminal .. ' -e htop')
+                run_in_terminal('htop')
             end)
     ))
     return mysysload
+end
+
+cpuusage_lasttotal = 0
+cpuusage_lastactive = 0
+function cpuusage(args)
+    local args = args or {}
+    local refresh_timeout = args.refresh_timeout or 10
+
+    local w = widget({ type = "textbox" })
+
+    local readcurrent = function()
+        -- Read the amount of time the CPUs have spent performing
+        -- different kinds of work. Read the first line of /proc/stat
+        -- which is the sum of all CPUs.
+        local times = vain.util.first_line("/proc/stat")
+        local at = 1
+        local idle = 0
+        local total = 0
+        for field in string.gmatch(times, "[%s]+([^%s]+)")
+        do
+            -- 3 = idle, 4 = ioWait. Essentially, the CPUs have done
+            -- nothing during these times.
+            if at == 3 or at == 4
+            then
+                idle = idle + field
+            end
+            total = total + field
+            at = at + 1
+        end
+        local active = total - idle
+
+        return active, total
+    end
+
+    local cpuusageupdate = function()
+        -- Read current data and calculate relative values.
+        local nowactive, nowtotal = readcurrent()
+        local dactive = nowactive - cpuusage_lastactive
+        local dtotal = nowtotal - cpuusage_lasttotal
+        w.text = ' cpu: '
+                 .. '<span color="' .. beautiful.fg_focus .. '">'
+                 .. string.format('%3s', math.ceil((dactive / dtotal) * 100))
+                 .. '%'
+                 .. '</span>'
+                 .. ' '
+
+        -- Save current data for the next run.
+        cpuusage_lastactive = nowactive
+        cpuusage_lasttotal = nowtotal
+    end
+
+    -- Record current (first) data.
+    cpuusage_lastactive, cpuusage_lasttotal = readcurrent()
+
+    -- Set up timer, buttons and initial text.
+    local cpuusagetimer = timer({ timeout = refresh_timeout })
+    cpuusagetimer:add_signal("timeout", cpuusageupdate)
+    cpuusagetimer:start()
+    w:buttons(awful.util.table.join(
+        awful.button({}, 0,
+            function()
+                run_in_terminal('htop')
+            end)
+    ))
+    w.text = ' cpu: '
+             .. '<span color="' .. beautiful.fg_focus .. '">'
+             .. '  0%'
+             .. '</span>'
+             .. ' '
+
+    return w
+end
+
+-- Show memory usage (ignoring caches)
+function memusage(args)
+    local args = args or {}
+    local refresh_timeout = args.refresh_timeout or 10
+    local show_swap = args.show_swap or false
+
+    local widg = widget({ type = "textbox" })
+    local upd = function()
+        -- Get MEM info. Base code borrowed from Vicious.
+        -- Note to self: Numbers in meminfo are KiB although it says kB.
+        -- Actually, I'd like to use MB rather than MiB, but `htop` uses
+        -- MiB, too, so I'll keep it consistent.
+        local mem = {}
+        for line in io.lines("/proc/meminfo")
+        do
+            for k, v in string.gmatch(line, "([%a]+):[%s]+([%d]+).+")
+            do
+                if     k == "MemTotal"  then mem.total = math.floor(v / 1024)
+                elseif k == "MemFree"   then mem.free  = math.floor(v / 1024)
+                elseif k == "Buffers"   then mem.buf   = math.floor(v / 1024)
+                elseif k == "Cached"    then mem.cache = math.floor(v / 1024)
+                elseif k == "SwapTotal" then mem.swap  = math.floor(v / 1024)
+                elseif k == "SwapFree"  then mem.swapf = math.floor(v / 1024)
+                end
+            end
+        end
+
+        used = mem.total - (mem.free + mem.buf + mem.cache)
+        swapused = mem.swap - mem.swapf
+        fmt = "%" .. string.len(mem.total) .. ".0f/%.0f MB"
+        widg.text = ' <span color="' .. beautiful.fg_urgent .. '">'
+                    .. string.format(fmt, used, mem.total) .. '</span> '
+
+        if show_swap
+        then
+            widg.text = widg.text .. '('
+                        .. string.format('%.0f MB', swapused)
+                        .. ') '
+        end
+    end
+    upd()
+    local tmr = timer({ timeout = refresh_timeout })
+    tmr:add_signal("timeout", upd)
+    tmr:start()
+    widg:buttons(awful.util.table.join(
+        awful.button({}, 0,
+            function()
+                run_in_terminal('htop')
+            end)
+    ))
+    return widg
 end
 
 -- Maildir check
@@ -54,28 +200,37 @@ function mailcheck(args)
 
     local mymailcheck = widget({ type = "textbox" })
     local mymailcheckupdate = function()
-        -- Search for files in "new" directories. Print only their base
-        -- path.
+        -- Find pathes to mailboxes.
         local p = io.popen("find " .. mailpath ..
-                           " -path '*/new/[^.]*' -type f -printf '%h\n'")
+                           " -mindepth 1 -maxdepth 1 -type d" ..
+                           " -not -name .git")
         local boxes = {}
         local line = ""
         repeat
             line = p:read("*l")
             if line ~= nil
             then
-                -- Strip off leading mailpath and anything after and
-                -- including "/new...". Save number of new mails.
-                local box = string.match(line, mailpath ..
-                                               "/*\.?([^/]+)/new.*")
-                if boxes[box] == nil
+                -- Find all files in the "new" subdirectory. For each
+                -- file, print a single character (no newline). Don't
+                -- match files that begin with a dot.
+                -- Afterwards the length of this string is the number of
+                -- new mails in that box.
+                local np = io.popen("find " .. line ..
+                                    "/new -mindepth 1 -type f " ..
+                                    "-not -name '.*' -printf a")
+                local mailstring = np:read("*all")
+
+                -- Strip off leading mailpath.
+                local box = string.match(line, mailpath .. "/*([^/]+)")
+                local nummails = string.len(mailstring)
+                if nummails > 0
                 then
-                    boxes[box] = 1
-                else
-                    boxes[box] = boxes[box] + 1
+                    boxes[box] = nummails
                 end
             end
         until line == nil
+
+        table.sort(boxes)
 
         local newmail = ""
         for box, number in pairs(boxes)
@@ -98,18 +253,23 @@ function mailcheck(args)
             mymailcheck.text = " no mail "
         else
             mymailcheck.text = ' <span color="'
-                               .. beautiful.border_focus
+                               .. (beautiful.mailcheck_new or "#FF0000")
                                .. '">mail: ' .. newmail .. '</span> '
         end
     end
-    mymailcheckupdate()
+    if args.initial_update == nil or args.initial_update
+    then
+        mymailcheckupdate()
+    else
+        mymailcheck.text = " no mail "
+    end
     local mymailchecktimer = timer({ timeout = refresh_timeout })
     mymailchecktimer:add_signal("timeout", mymailcheckupdate)
     mymailchecktimer:start()
     mymailcheck:buttons(awful.util.table.join(
         awful.button({}, 0,
             function()
-                awful.util.spawn(terminal .. ' -e muttgit.sh')
+                run_in_terminal('bash -i -c smail')
             end)
     ))
     return mymailcheck
@@ -185,11 +345,11 @@ function volume(args)
     local myvolume = widget({ type = "textbox" })
     local myvolumeupdate = function()
         -- Mostly copied from vicious.
-        local f = io.popen("amixer get " .. mixer_channel)
+        local f = io.popen("control_volume get " .. mixer_channel)
         local mixer = f:read("*all")
         f:close()
 
-        local volu, mute = string.match(mixer, "([%d]+)%%.*%[([%l]*)")
+        local volu, mute = string.match(mixer, "(%d+) (%l+)")
 
         if volu == nil
         then
@@ -217,31 +377,27 @@ function volume(args)
     myvolume:buttons(awful.util.table.join(
         awful.button({}, 1,
             function()
-                awful.util.spawn('amixer set ' .. mixer_channel ..
-                                 ' toggle')
+                awful.util.spawn('control_volume toggle ' .. mixer_channel)
              end),
 
         awful.button({}, 2,
             function()
-                awful.util.spawn(terminal .. ' -e alsamixer')
+                run_in_terminal('alsamixer')
             end),
 
         awful.button({}, 3,
             function()
-                awful.util.spawn('amixer set ' .. mixer_channel ..
-                                 ' toggle')
+                awful.util.spawn('control_volume toggle ' .. mixer_channel)
             end),
 
         awful.button({}, 4,
             function()
-                awful.util.spawn('amixer set ' .. mixer_channel ..
-                                 ' 2dB+ unmute')
+                awful.util.spawn('control_volume up ' .. mixer_channel)
             end),
 
         awful.button({}, 5,
             function()
-                awful.util.spawn('amixer set ' .. mixer_channel ..
-                                 ' 2dB- unmute')
+                awful.util.spawn('control_volume down ' .. mixer_channel)
             end)
     ))
     return myvolume
@@ -261,7 +417,12 @@ function mpd(args)
         widget({ type = "textbox" })
     }
 
-    mpdtable[1].text = " mpd: "
+    if args.show_label == nil or args.show_label
+    then
+        mpdtable[1].text = " mpd: "
+    else
+        mpdtable[1].text = " "
+    end
 
     mpdtable[2].image = image("/usr/share/icons/Tango/32x32/actions/" ..
                               "player_rew.png")
@@ -280,25 +441,25 @@ function mpd(args)
 
             awful.button({}, 2,
                 function()
-                    awful.util.spawn(terminal .. ' -e ncmpcpp')
+                    run_in_terminal('ncmpcpp')
                 end),
 
             awful.button({}, 3,
                 function()
-                    awful.util.spawn('amixer set ' .. mixer_channel ..
-                                     ' toggle')
+                    awful.util.spawn('control_volume toggle '
+                                     .. mixer_channel)
                 end),
 
             awful.button({}, 4,
                 function()
-                    awful.util.spawn('amixer set ' .. mixer_channel ..
-                                     ' 2dB+ unmute')
+                    awful.util.spawn('control_volume up '
+                                     .. mixer_channel)
                 end),
 
             awful.button({}, 5,
                 function()
-                    awful.util.spawn('amixer set ' .. mixer_channel ..
-                                     ' 2dB- unmute')
+                    awful.util.spawn('control_volume down '
+                                     .. mixer_channel)
                 end)
         ))
     end
@@ -374,8 +535,10 @@ end
 -- Shows the number of open tasks. On click, a terminal is spawned which
 -- first shows all those tasks and then launches a shell for you to work
 -- with gitodo.
-function gitodo()
+function gitodo(args)
+    local args = args or {}
     local widg = widget({ type = "textbox" })
+    local refresh_timeout = args.refresh_timeout or 120
 
     local mytodoupdate = function()
         local f = io.popen("gitodo --count")
@@ -389,7 +552,8 @@ function gitodo()
 
         if tonumber(outdated) > 0
         then
-            msg = msg .. '<span color="' .. beautiful.border_focus
+            msg = msg .. '<span color="'
+                      .. (beautiful.gitodo_outdated or beautiful.border_focus)
                       .. '">'
                       .. outdated
                       .. '</span>, '
@@ -397,33 +561,88 @@ function gitodo()
 
         if tonumber(warning) > 0
         then
-            msg = msg .. '<span color="' .. beautiful.fg_urgent
+            msg = msg .. '<span color="'
+                      .. (beautiful.gitodo_warning or beautiful.fg_urgent)
                       .. '">'
                       .. warning
                       .. '</span>, '
         end
 
-        msg = msg .. '<span color="' .. beautiful.fg_urgent
+        msg = msg .. '<span color="'
+                  .. (beautiful.gitodo_normal or beautiful.fg_urgent)
                   .. '">'
                   .. all
                   .. '</span> '
 
         widg.text = msg
     end
-    mytodoupdate()
-    local todotimer = timer({ timeout = 120 })
+    if args.initial_update == nil or args.initial_update
+    then
+        mytodoupdate()
+    else
+        widg.text = ' todo: - '
+    end
+    local todotimer = timer({ timeout = refresh_timeout })
     todotimer:add_signal("timeout", mytodoupdate)
     todotimer:start()
 
     widg:buttons(awful.util.table.join(
         awful.button({}, 0,
             function()
-                awful.util.spawn(terminal
-                                 .. ' -e bash -c "gitodo; echo; bash"')
+                run_in_terminal('bash -c "gitodo --raw | '
+                                .. 'cut -d\\" \\" -f2 | highcal; '
+                                .. 'echo; gitodo; echo; exec bash"')
             end)
     ))
 
     return widg
+end
+
+-- Creates a thin wibox at a position relative to another wibox.
+-- Note: It is vital that we use capi.wibox instead of awful.wibox. The
+-- awful library will do additional stuff that we certainly do not want
+-- to be done here.
+function borderbox(relbox, s, args)
+    local wiboxarg = {}
+    local where = args.position or 'above'
+    local color = args.color or '#FFFFFF'
+    local size = args.size or 1
+    local box = nil
+    wiboxarg.position = nil
+    wiboxarg.bg = color
+
+    if where == 'above'
+    then
+        wiboxarg.width = relbox.width
+        wiboxarg.height = size
+        box = capi.wibox(wiboxarg)
+        box.x = relbox.x
+        box.y = relbox.y - size
+    elseif where == 'below'
+    then
+        wiboxarg.width = relbox.width
+        wiboxarg.height = size
+        box = capi.wibox(wiboxarg)
+        box.x = relbox.x
+        box.y = relbox.y + relbox.height
+    elseif where == 'left'
+    then
+        wiboxarg.width = size
+        wiboxarg.height = relbox.height
+        box = capi.wibox(wiboxarg)
+        box.x = relbox.x - size
+        box.y = relbox.y
+    elseif where == 'right'
+    then
+        wiboxarg.width = size
+        wiboxarg.height = relbox.height
+        box = capi.wibox(wiboxarg)
+        box.x = relbox.x + relbox.width
+        box.y = relbox.y
+    end
+
+    box.screen = s
+    return box
 end
 
 -- vim: set et :

@@ -101,7 +101,7 @@ function keyboardhandler (restore)
         end
 
         --
-        if key == "Escape" then
+        if key == "Escape" or key == "d" or key == "e" then
             restore()
             return false
         elseif key == "Return" then

@@ -105,7 +105,7 @@ layouts = {
     vain.layout.centerwork,             --5
     awful.layout.suit.magnifier,        --6
     awful.layout.suit.floating,         --7
-    --awful.layout.suit.max,
+    awful.layout.suit.max,              --8 
 }
 
 media = {
@@ -518,16 +518,16 @@ end
 
 globalkeys = awful.util.table.join(
     -- run_or_raise
-    awful.key(k_a, "f",         function () run_or_raise("firefox", { class = "Firefox" }) end),
+    --awful.key(k_a, "f",         function () run_or_raise("firefox", { class = "Firefox" }) end),
     --awful.key(k_a, "g",       function () run_or_raise("geany", { class = "Geany" }) end),
-    --awful.key(k_a, "t",         function () run_or_raise("thunderbird", { class = "Thunderbird" }) end),
+    awful.key(k_a, "t",         function () run_or_raise("thunderbird", { class = "Thunderbird" }) end),
     awful.key(k_w, "a",         function () run_or_raise("abiword", { class = "Abiword" }) end),
     awful.key(k_w, "g",         function () run_or_raise("gimp", { class = "Gimp" }) end),
     awful.key(k_w, "l",         function () run_or_raise("lowriter", { class = "libreoffice-writer" }) end),
     awful.key(k_w, "p",         function () run_or_raise("pcmanfm", { class = "Pcmanfm" }) end),
     awful.key(k_w, "s",         function () run_or_raise("skype", { class = "Skype" }) end),
     awful.key(k_w, "t",         function () run_or_raise("teamspeak3", { class = "Ts3client_linux_amd64" }) end),
-    awful.key(k_w, "w",         function () run_or_raise("word", { class = "Wine", instance = "WINWORD.EXE" }) end),
+    --awful.key(k_w, "w",       function () run_or_raise("word", { class = "Wine", instance = "WINWORD.EXE" }) end),
     --awful.key(k_w, "v",       function () run_or_raise("teamviewer", { class = "Wine", instance = "TeamViewer.exe" }) end),
     awful.key(k_w, "v",         function () run_or_raise("vnc2", { class = "Vncviewer" }) end),
     awful.key(k_wc, "v",        function () run_or_raise("vnc2 a", { class = "Vncviewer" }) end),
@@ -538,17 +538,18 @@ globalkeys = awful.util.table.join(
     -- Scratchdrop
     awful.key(k_a, "a",         function () scratch.drop("urxvt -name urxvt_drop_t -e tmux", "top", "center", 1, 0.35 ) end),
     awful.key(k_a, "d",         function () scratch.drop("urxvt -name urxvt_drop_r -e tmux", "center", "right", 0.35, 1 ) end),
-    --awful.key(k_a, "g",         function () scratch.drop("vnc2", "center", "center", 0.76, 0.98 ) end),
+    --awful.key(k_a, "g",       function () scratch.drop("vnc2", "center", "center", 0.76, 0.98 ) end),
     awful.key(k_a, "s",         function () scratch.drop("urxvt -name urxvt_drop -e tmux", "bottom", "center", 1, 0.35 ) end),
-    awful.key(k_a, "t",         function () scratch.drop("thunderbird", "center", "center", 0.7, 0.8 ) end),
+    --awful.key(k_a, "t",       function () scratch.drop("thunderbird", "center", "center", 0.7, 0.8 ) end),
     awful.key(k_a, "z",         function () scratch.drop("keepnote", "center", "center", 0.7, 0.8 ) end),
-    awful.key(k_w, "c",         function () scratch.drop("copyq show", "center", "right", 0.5, 0.7 ) end),
+    awful.key(k_w, "c",         function () scratch.drop("clementine", "center", "center", 0.8, 0.9 ) end),
     awful.key(k_w, "d",         function () scratch.drop("deluge", "center", "center", 0.7, 0.8 ) end),
     awful.key(k_w, "f",         function () run_or_raise("firefox", { class = "Firefox" }) end),
     awful.key(k_w, "m",         function () scratch.drop("gmpc", "center", "center", 0.7, 0.8 ) end),
     awful.key(k_w, "n",         function () scratch.drop("urxvt -name urxvt_drop_c -e ncmpcpp", "center", "center", 0.7, 0.8 ) end),
     --awful.key(k_w, "o",       function () scratch.drop("spotify", "center", "center", 0.7, 0.8 ) end),
     awful.key(k_w, "o",         function () run_or_raise("wspotify", { class = "Wine", instance = "spotify.exe" }) end),
+    awful.key(k_w, "q",         function () scratch.drop("copyq show", "center", "right", 0.5, 0.7 ) end),
     --awful.key(k_w, "h",       function () scratch.drop("urxvt -name urxvt_ghost -e ghost", "top", "center", 0.5, 0.6 ) end),
     awful.key(k_ac, "d",        function () scratch.pad.toggle() end),
 
@@ -558,10 +559,10 @@ globalkeys = awful.util.table.join(
     awful.key(k_a, ",",         function () exec("geany "..home.."/.projects/random/random.geany") end),
     awful.key(k_a, ".",         function () exec("geany "..home.."/.projects/configs/configs.geany") end),
     awful.key(k_a, "-",         function () exec("geany "..home.."/.projects/dev/dev.geany") end),
-    awful.key(k_a, "Print",     function () sexec("scrot -q 90 -bs "..home.."/.local/screenshots/w%m.%d.%y_%H-%M-%S.jpg") end),
+    awful.key(k_a, "Print",     function () sexec("import -window $(xdotool getwindowfocus) "..home.."/.local/screenshots/w$(date +%m-%d-%Y_%H%M%S).jpg") end),
+    --awful.key(k_a, "Print",     function () sexec("(sleep 1 && xdotool click 1) & scrot -q 90 -bs "..home.."/.local/screenshots/w%m.%d.%y_%H-%M-%S.jpg") end),
     awful.key(k_n, "Print",     function () sexec("scrot -q 90 "..home.."/.local/screenshots/%m.%d.%y_%H-%M-%S.jpg") end),
     awful.key(k_w, "Print",     function () sexec("scrot -q 90 -t 30 "..home.."/.local/screenshots/t%m.%d.%y_%H-%M-%S.jpg") end),
-
     -- Media
     awful.key(k_n,  "XF86AudioLowerVolume",  volume_down),
     awful.key(k_n,  "XF86AudioRaiseVolume",  volume_up),
@@ -667,6 +668,12 @@ end
 clientkeys = awful.util.table.join(
 
     awful.key(k_a, "c",     function (c) c:kill()                         end),
+    awful.key(k_a, "f",     function (c) c.fullscreen = not c.fullscreen  end),
+    awful.key(k_a, "x",     function (c)
+                                c.maximized_horizontal = not c.maximized_horizontal
+                                c.maximized_vertical   = not c.maximized_vertical
+                                c.above                = not c.above
+                            end),
     awful.key(k_a, "r",     function (c) c:swap(awful.client.getmaster()) end),
     awful.key(k_a, "<",     function (c)
                                 if c.titlebar then
@@ -677,7 +684,6 @@ clientkeys = awful.util.table.join(
                                     --debug_notify(c.name .. "\ntitlebar " .. colored_on)
                                 end
                             end),
-    awful.key(k_a, "x",     function (c) c.fullscreen = not c.fullscreen  end),
     awful.key(k_ac, "a",    function (c) scratch.pad.set(c, 0.60, 0.60, true) end),
     awful.key(k_ac, "f",    awful.client.floating.toggle                     ),
     awful.key(k_as, "f",    function (c) -- toggle floating but avoid uneven window resolutions for streaming with ffmpeg
@@ -695,10 +701,6 @@ clientkeys = awful.util.table.join(
                                     --c:geometry( { width = 720 , height = 450 } )
                                 --end
                             end),
-    awful.key(k_ac, "m",    function (c)
-                                c.maximized_horizontal = not c.maximized_horizontal
-                                c.maximized_vertical   = not c.maximized_vertical
-    end),
     awful.key(k_ac, "o",    function (c) c.ontop = not c.ontop            end),
     awful.key(k_ac, "s",    function (c) c.sticky = not c.sticky end),
     awful.key(k_ac, "v",    function (c) c.minimized = not c.minimized    end),
@@ -894,10 +896,10 @@ awful.rules.rules = {
     { rule_any = { class = { "Xephyr", "Plugin-container" }, instance = { "urxvt_drop" } },
         properties = { floating = true, border_width = 0, above = true }
     },
-    --~ { rule = { class = "Thunderbird", instance="Msgcompose" },
-        --~ properties = { floating = true, geometry = { width = 764, height = 684, x = 319, y = 96 } },
-        --~ callback = awful.placement.centered
-    --~ },
+    { rule = { class = "Thunderbird" }, except = { role = "3pane" },
+        properties = { floating = true, geometry = { width = 764, height = 684 } },
+        callback = awful.placement.centered
+    },
     { rule = { class = "Pcmanfm", name="Execute File" },
         properties = { floating = true, sticky = true, ontop = true, above = true },
         callback = awful.placement.centered

@@ -518,8 +518,8 @@ end
 
 globalkeys = awful.util.table.join(
     -- run_or_raise
-    --awful.key(k_a, "f",         function () run_or_raise("firefox", { class = "Firefox" }) end),
-    --awful.key(k_a, "g",       function () run_or_raise("geany", { class = "Geany" }) end),
+    awful.key(k_a, "f",         function () run_or_raise("firefox", { class = "Firefox" }) end),
+    awful.key(k_a, "g",       function () run_or_raise("geany", { class = "Geany" }) end),
     awful.key(k_a, "t",         function () run_or_raise("thunderbird", { class = "Thunderbird" }) end),
     awful.key(k_w, "a",         function () run_or_raise("abiword", { class = "Abiword" }) end),
     awful.key(k_w, "g",         function () run_or_raise("gimp", { class = "Gimp" }) end),
@@ -668,13 +668,19 @@ end
 clientkeys = awful.util.table.join(
 
     awful.key(k_a, "c",     function (c) c:kill()                         end),
-    awful.key(k_a, "f",     function (c) c.fullscreen = not c.fullscreen  end),
+    awful.key(k_a, "m",     function (c) c.fullscreen = not c.fullscreen  end),
+    awful.key(k_a, "r",     function (c) c:swap(awful.client.getmaster()) end),
     awful.key(k_a, "x",     function (c)
+                                c.fullscreen = not c.fullscreen
+                                if c.fullscreen then
+                                    c:geometry({y=screen[c.screen].workarea.y, height=screen[c.screen].workarea.height})
+                                end
+                            end),
+    awful.key(k_ac, "x",     function (c)
                                 c.maximized_horizontal = not c.maximized_horizontal
                                 c.maximized_vertical   = not c.maximized_vertical
                                 c.above                = not c.above
                             end),
-    awful.key(k_a, "r",     function (c) c:swap(awful.client.getmaster()) end),
     awful.key(k_a, "<",     function (c)
                                 if c.titlebar then
                                     awful.titlebar.remove(c)
@@ -886,20 +892,23 @@ awful.rules.rules = {
     },
 
     -- General
-    { rule_any = { class = { "Sonata", "Zenity", "Orage", "Gxmessage", "Keepnote" } },
+    { rule_any = { class = { "Sonata", "Zenity", "Orage", "Gxmessage", "Keepnote", "Galculator" } },
         properties = { floating = true }
     },
-    { rule = { class = "Tk", name = "Blockify-UI" },
+    { rule = { class = "Tk", name = "Blockify" },
         properties = { floating = true },
         callback = awful.placement.centered
     },
     { rule_any = { class = { "Xephyr", "Plugin-container" }, instance = { "urxvt_drop" } },
         properties = { floating = true, border_width = 0, above = true }
     },
-    { rule = { class = "Thunderbird" }, except = { role = "3pane" },
-        properties = { floating = true, geometry = { width = 764, height = 684 } },
-        callback = awful.placement.centered
+    --[[{ rule = { class = "Thunderbird" }, except = { role = "3pane" },
+        properties = { floating = true, geometry = { width = 764, height = 684 } }
+        --callback = awful.placement.centered
     },
+    { rule = { class = "Evince" },
+        properties = { floating = false }
+    },]]
     { rule = { class = "Pcmanfm", name="Execute File" },
         properties = { floating = true, sticky = true, ontop = true, above = true },
         callback = awful.placement.centered
